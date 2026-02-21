@@ -1,195 +1,180 @@
 """
-Audio Processing Pipeline Task
+Audio Processing Pipeline – Phase 2 (Real ML Integration)
 
-This Celery task orchestrates the complete audio processing pipeline:
-1. Audio Standardization (FFmpeg)
-2. Voice Activity Detection (Silero VAD)
-3. Speaker Diarization (Pyannote)
-4. ASR Transcription (Faster-Whisper)
-5. LLM Scoring & Extraction
+Orchestrates the full call analysis pipeline:
+  1. Download audio from S3/MinIO
+  2. Audio normalization (FFmpeg → 16kHz mono PCM)
+  3. Voice Activity Detection (Silero VAD)
+  4. Speaker Diarization (Pyannote / VAD fallback)
+  5. ASR Transcription (Faster-Whisper)
+  6. LLM Scoring (Ollama / rule-based fallback)
+  7. Persist results to PostgreSQL
 
-For Phase 1 (MVP), this task contains stubs for each stage.
-Full ML integration will be added in Phase 2.
+Each stage updates a ProcessingJob row so progress is visible in real-time.
 """
-import json
 import logging
-import subprocess
-import tempfile
+import sys
 import os
-from datetime import datetime, timezone
+
 from workers.celery_app import celery_app
+from workers.pipeline.s3_downloader import download_audio, cleanup_temp_dir
+from workers.pipeline.audio_normalizer import normalize_audio, get_audio_duration
+from workers.pipeline.vad import run_vad
+from workers.pipeline.diarizer import run_diarization
+from workers.pipeline.transcriber import run_transcription
+from workers.pipeline.llm_scorer import run_llm_scoring
+from workers.pipeline.db_persistence import (
+    update_call_status,
+    record_processing_job,
+    save_transcript,
+    save_evaluation,
+    get_template,
+)
 
 logger = logging.getLogger(__name__)
 
 
-@celery_app.task(bind=True, max_retries=3, default_retry_delay=30)
+@celery_app.task(
+    bind=True,
+    max_retries=3,
+    default_retry_delay=60,
+    acks_late=True,
+    name="workers.tasks.audio_pipeline.process_call",
+)
 def process_call(self, call_id: int, s3_path: str, template_id: int):
-    """Main pipeline task: process a single audio call through all stages."""
-    logger.info(f"[Call {call_id}] Starting pipeline processing")
+    """
+    Main Celery task: process one audio call through the full ML pipeline.
+
+    Args:
+        call_id: database Call.id
+        s3_path: S3 object key (or s3://bucket/key URI)
+        template_id: ScoringTemplate.id for LLM prompt
+    """
+    logger.info(f"[Call {call_id}] ═══ Pipeline START (task_id={self.request.id}) ═══")
+
+    local_path = None
+    normalized_path = None
 
     try:
-        # Update call status to processing
-        _update_call_status(call_id, "processing")
+        # ── Mark call as processing ──────────────────────────────────────
+        update_call_status(call_id, "processing")
 
-        # Stage 1: Download from S3
+        # ── Fetch scoring template ───────────────────────────────────────
+        template = get_template(template_id)
+        if not template:
+            raise ValueError(f"ScoringTemplate {template_id} not found")
+
+        system_prompt = template["system_prompt"]
+        json_schema = template["json_schema"]
+
+        # ════════════════════════════════════════════════════════════════
+        # Stage 1: Download
+        # ════════════════════════════════════════════════════════════════
+        _stage_start(call_id, "normalize")   # reuse normalize stage for download
         self.update_state(state="PROGRESS", meta={"stage": "downloading", "call_id": call_id})
-        logger.info(f"[Call {call_id}] Stage 1: Downloading audio from S3")
-        local_path = _download_audio(s3_path)
+        logger.info(f"[Call {call_id}] Stage 1: Downloading from S3 ({s3_path})")
+        local_path = download_audio(s3_path)
 
-        # Stage 2: Audio Normalization (FFmpeg)
+        # ════════════════════════════════════════════════════════════════
+        # Stage 2: Normalize audio
+        # ════════════════════════════════════════════════════════════════
         self.update_state(state="PROGRESS", meta={"stage": "normalizing", "call_id": call_id})
         logger.info(f"[Call {call_id}] Stage 2: Normalizing audio")
-        normalized_path = _normalize_audio(local_path)
+        normalized_path = normalize_audio(local_path)
+        duration = get_audio_duration(normalized_path)
+        _stage_done(call_id, "normalize")
 
+        # ════════════════════════════════════════════════════════════════
         # Stage 3: Voice Activity Detection
+        # ════════════════════════════════════════════════════════════════
+        _stage_start(call_id, "vad")
         self.update_state(state="PROGRESS", meta={"stage": "vad", "call_id": call_id})
-        logger.info(f"[Call {call_id}] Stage 3: Running VAD")
-        vad_segments = _run_vad(normalized_path)
+        logger.info(f"[Call {call_id}] Stage 3: Voice Activity Detection")
+        vad_segments = run_vad(normalized_path)
+        _stage_done(call_id, "vad")
 
+        # ════════════════════════════════════════════════════════════════
         # Stage 4: Speaker Diarization
+        # ════════════════════════════════════════════════════════════════
+        _stage_start(call_id, "diarize")
         self.update_state(state="PROGRESS", meta={"stage": "diarizing", "call_id": call_id})
-        logger.info(f"[Call {call_id}] Stage 4: Speaker diarization")
-        speaker_segments = _run_diarization(normalized_path)
+        logger.info(f"[Call {call_id}] Stage 4: Speaker Diarization")
+        speaker_segments = run_diarization(normalized_path, vad_segments)
+        _stage_done(call_id, "diarize")
 
+        # ════════════════════════════════════════════════════════════════
         # Stage 5: ASR Transcription
+        # ════════════════════════════════════════════════════════════════
+        _stage_start(call_id, "transcribe")
         self.update_state(state="PROGRESS", meta={"stage": "transcribing", "call_id": call_id})
-        logger.info(f"[Call {call_id}] Stage 5: Transcription")
-        transcript = _run_transcription(normalized_path, speaker_segments)
+        logger.info(f"[Call {call_id}] Stage 5: ASR Transcription")
+        transcript = run_transcription(normalized_path, speaker_segments)
+        _stage_done(call_id, "transcribe")
 
+        # Persist transcript immediately (so UI can show it even if scoring fails)
+        save_transcript(call_id, transcript)
+
+        # ════════════════════════════════════════════════════════════════
         # Stage 6: LLM Scoring
+        # ════════════════════════════════════════════════════════════════
+        _stage_start(call_id, "score")
         self.update_state(state="PROGRESS", meta={"stage": "scoring", "call_id": call_id})
-        logger.info(f"[Call {call_id}] Stage 6: LLM scoring")
-        scores = _run_llm_scoring(transcript, template_id)
+        logger.info(f"[Call {call_id}] Stage 6: LLM Scoring (template: {template['name']})")
+        scores = run_llm_scoring(transcript, system_prompt, json_schema)
+        _stage_done(call_id, "score")
 
-        # Stage 7: Save results
-        self.update_state(state="PROGRESS", meta={"stage": "saving", "call_id": call_id})
-        logger.info(f"[Call {call_id}] Stage 7: Saving results")
-        _save_results(call_id, transcript, scores)
+        # Persist evaluation results
+        save_evaluation(call_id, scores)
 
-        # Update call status to completed
-        _update_call_status(call_id, "completed")
-        logger.info(f"[Call {call_id}] Pipeline completed successfully")
+        # ════════════════════════════════════════════════════════════════
+        # Stage 7: Finalise
+        # ════════════════════════════════════════════════════════════════
+        update_call_status(call_id, "completed", duration_seconds=duration)
+        logger.info(
+            f"[Call {call_id}] ═══ Pipeline DONE "
+            f"(score={scores.get('overall_score')}, duration={duration:.0f}s) ═══"
+        )
 
-        # Cleanup temp files
-        _cleanup_temp_files(local_path, normalized_path)
-
-        return {"call_id": call_id, "status": "completed"}
+        return {
+            "call_id": call_id,
+            "status": "completed",
+            "overall_score": scores.get("overall_score"),
+            "duration_seconds": duration,
+        }
 
     except Exception as exc:
-        logger.error(f"[Call {call_id}] Pipeline failed: {exc}")
-        _update_call_status(call_id, "failed", str(exc))
-        raise self.retry(exc=exc, countdown=30)
-
-
-# ---------------------------------------------------------------------------
-# Stub implementations for each pipeline stage (to be replaced in Phase 2)
-# ---------------------------------------------------------------------------
-
-def _download_audio(s3_path: str) -> str:
-    """Download audio from S3. Stub: returns temp path."""
-    # TODO Phase 2: Actually download from S3
-    temp_dir = tempfile.mkdtemp()
-    local_path = os.path.join(temp_dir, "input.wav")
-    logger.info(f"[Stub] Would download {s3_path} to {local_path}")
-    # Create a placeholder file
-    with open(local_path, "wb") as f:
-        f.write(b"")
-    return local_path
-
-
-def _normalize_audio(input_path: str) -> str:
-    """Normalize audio to 16kHz mono WAV using FFmpeg."""
-    output_path = input_path.replace(".wav", "_norm.wav")
-    try:
-        cmd = [
-            "ffmpeg", "-i", input_path,
-            "-ar", "16000", "-ac", "1",
-            "-c:a", "pcm_s16le", output_path, "-y"
-        ]
-        subprocess.run(cmd, check=True, capture_output=True, timeout=300)
-    except (subprocess.CalledProcessError, FileNotFoundError) as e:
-        logger.warning(f"[Stub] FFmpeg normalization skipped: {e}")
-        output_path = input_path
-    return output_path
-
-
-def _run_vad(audio_path: str) -> list:
-    """Run Voice Activity Detection. Stub returns full audio as one segment."""
-    # TODO Phase 2: Integrate Silero VAD
-    logger.info("[Stub] VAD - returning full audio as speech")
-    return [{"start": 0.0, "end": 300.0}]
-
-
-def _run_diarization(audio_path: str) -> list:
-    """Run speaker diarization. Stub returns two alternating speakers."""
-    # TODO Phase 2: Integrate Pyannote
-    logger.info("[Stub] Diarization - returning mock speaker segments")
-    return [
-        {"start": 0.0, "end": 15.0, "speaker": "Agent"},
-        {"start": 15.0, "end": 30.0, "speaker": "Customer"},
-        {"start": 30.0, "end": 45.0, "speaker": "Agent"},
-        {"start": 45.0, "end": 60.0, "speaker": "Customer"},
-    ]
-
-
-def _run_transcription(audio_path: str, speaker_segments: list) -> list:
-    """Run ASR transcription. Stub returns mock transcript."""
-    # TODO Phase 2: Integrate Faster-Whisper
-    logger.info("[Stub] Transcription - returning mock transcript")
-    return [
-        {"speaker": "Agent", "start": 0.0, "end": 15.0, "text": "Hello, thank you for calling. How can I help you today?"},
-        {"speaker": "Customer", "start": 15.0, "end": 30.0, "text": "Hi, I'm interested in your enterprise plan."},
-        {"speaker": "Agent", "start": 30.0, "end": 45.0, "text": "Great! Let me tell you about our features and pricing."},
-        {"speaker": "Customer", "start": 45.0, "end": 60.0, "text": "That sounds perfect. Can you send me a proposal?"},
-    ]
-
-
-def _run_llm_scoring(transcript: list, template_id: int) -> dict:
-    """Run LLM scoring. Stub returns mock scores."""
-    # TODO Phase 2: Integrate vLLM / llama.cpp
-    logger.info("[Stub] LLM Scoring - returning mock scores")
-    return {
-        "overall_score": 85.5,
-        "summary": "Agent performed well with clear communication and product knowledge.",
-        "compliance_flags": {
-            "greeting_used": True,
-            "disclosure_of_recording": True,
-            "proper_closing": True,
-        },
-        "pillar_scores": {
-            "CQS": 88,
-            "ECS": 82,
-            "PHS": 85,
-            "DIS": 80,
-            "ROS": 90,
-        },
-        "recommendations": [
-            "Ask about budget earlier in the conversation",
-            "Provide specific timeline for proposal delivery",
-        ],
-    }
-
-
-def _save_results(call_id: int, transcript: list, scores: dict):
-    """Save transcript and scores to database. Stub: logs the data."""
-    # TODO: Use async DB session or sync equivalent
-    logger.info(f"[Stub] Would save {len(transcript)} transcript segments and scores for call {call_id}")
-    logger.info(f"[Stub] Overall score: {scores.get('overall_score')}")
-
-
-def _update_call_status(call_id: int, status: str, error_message: str = None):
-    """Update call status in database. Stub: logs the status change."""
-    # TODO: Use sync DB session
-    logger.info(f"[Stub] Call {call_id} status -> {status}")
-    if error_message:
-        logger.error(f"[Stub] Call {call_id} error: {error_message}")
-
-
-def _cleanup_temp_files(*paths):
-    """Clean up temporary files."""
-    for path in paths:
+        logger.error(f"[Call {call_id}] Pipeline FAILED: {exc}", exc_info=True)
         try:
-            if path and os.path.exists(path):
-                os.remove(path)
+            update_call_status(call_id, "failed", error_message=str(exc))
         except Exception:
             pass
+        raise self.retry(exc=exc, countdown=60)
+
+    finally:
+        # Always clean up temp files
+        if local_path:
+            cleanup_temp_dir(local_path)
+        if normalized_path and normalized_path != local_path:
+            try:
+                os.remove(normalized_path)
+            except Exception:
+                pass
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+def _stage_start(call_id: int, stage: str):
+    try:
+        record_processing_job(call_id, stage, "running")
+    except Exception as e:
+        logger.warning(f"[DB] Could not record stage start ({stage}): {e}")
+
+
+def _stage_done(call_id: int, stage: str, error: str = None):
+    try:
+        status = "failed" if error else "completed"
+        record_processing_job(call_id, stage, status, error_message=error)
+    except Exception as e:
+        logger.warning(f"[DB] Could not record stage done ({stage}): {e}")

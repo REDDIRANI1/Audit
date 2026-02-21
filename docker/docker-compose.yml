@@ -44,6 +44,33 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Ollama – local LLM inference (CPU by default) ──────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # Pull the default model on startup
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 5 && ollama pull ${OLLAMA_MODEL:-llama3.2:3b} && wait"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    # GPU profile – add 'docker-compose --profile gpu up' to enable
+    profiles:
+      - ""       # always run (no profile = default)
+    # Uncomment for NVIDIA GPU:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
   api:
     build:
       context: ../backend
@@ -76,9 +103,12 @@ services:
         condition: service_healthy
       minio:
         condition: service_started
+      ollama:
+        condition: service_healthy
     volumes:
       - ../backend:/app
-    command: celery -A workers.celery_app worker --loglevel=info --concurrency=2
+      - model_cache:/root/.cache      # shared model cache (Whisper, Silero)
+    command: celery -A workers.celery_app worker --loglevel=info --concurrency=2 -Q default
 
   beat:
     build:
@@ -97,3 +127,5 @@ volumes:
   postgres_data:
   redis_data:
   minio_data:
+  ollama_data:
+  model_cache:
