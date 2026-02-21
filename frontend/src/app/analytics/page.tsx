@@ -8,6 +8,22 @@ import {
     Tooltip, ResponsiveContainer, Cell
 } from "recharts";
 import { TrendingUp, BarChart2, Users, PhoneCall } from "lucide-react";
+import SentimentHeatmap from "@/components/SentimentHeatmap";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+
+// Mock data for sentiment heatmap
+const MOCK_HEATMAP = [
+    { day: "Mon", hour: 9, value: 0.8 }, { day: "Mon", hour: 10, value: 0.7 }, { day: "Mon", hour: 14, value: 0.4 },
+    { day: "Tue", hour: 11, value: 0.9 }, { day: "Wed", hour: 15, value: 0.2 }, { day: "Thu", hour: 10, value: 0.85 },
+    { day: "Fri", hour: 16, value: 0.6 },
+].concat(
+    Array.from({ length: 40 }, () => ({
+        day: ["Mon", "Tue", "Wed", "Thu", "Fri"][Math.floor(Math.random() * 5)],
+        hour: Math.floor(Math.random() * 24),
+        value: Math.random() * 0.8 + 0.2,
+    }))
+);
 
 type DayRange = 7 | 14 | 30 | 60;
 
@@ -63,188 +79,187 @@ export default function AnalyticsPage() {
             <Sidebar />
             <main className="main-with-sidebar">
                 {/* Header */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32 }}>
+                <div className="flex items-center justify-between mb-8">
                     <div>
-                        <h1 style={{ fontSize: "1.6rem", fontWeight: 700 }}>Analytics</h1>
-                        <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginTop: 4 }}>
+                        <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
+                        <p className="text-[var(--text-secondary)] text-sm mt-1">
                             Call quality insights and performance trends
                         </p>
                     </div>
 
                     {/* Day range switcher */}
-                    <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", padding: 4, borderRadius: 10 }}>
+                    <div className="flex gap-1 bg-[var(--bg-card)] p-1 rounded-lg border border-[var(--border-color)]">
                         {DAY_OPTIONS.map((opt) => (
-                            <button
+                            <Button
                                 key={opt.value}
+                                variant={days === opt.value ? "default" : "ghost"}
+                                size="sm"
                                 onClick={() => setDays(opt.value)}
-                                style={{
-                                    padding: "6px 14px",
-                                    borderRadius: 7,
-                                    border: "none",
-                                    cursor: "pointer",
-                                    background: days === opt.value ? "var(--accent-blue)" : "transparent",
-                                    color: days === opt.value ? "white" : "var(--text-secondary)",
-                                    fontSize: "0.8rem",
-                                    fontWeight: 600,
-                                    transition: "all 0.2s",
-                                }}
+                                className="h-7 px-3 text-xs"
                             >
                                 {opt.label}
-                            </button>
+                            </Button>
                         ))}
                     </div>
                 </div>
 
                 {loading ? (
-                    <div style={{ display: "flex", justifyContent: "center", paddingTop: 80 }}>
-                        <div className="animate-spin" style={{ width: 32, height: 32, border: "3px solid var(--border-color)", borderTopColor: "var(--accent-blue)", borderRadius: "50%" }} />
+                    <div className="flex justify-center pt-20">
+                        <div className="animate-spin w-8 h-8 border-3 border-[var(--border-color)] border-t-[var(--accent-blue)] rounded-full" />
                     </div>
                 ) : (
                     <>
                         {/* KPI Cards */}
                         {overview && (
-                            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 28 }}>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                                 {[
-                                    { label: "Total Calls", value: overview.total_calls, icon: <PhoneCall size={18} />, color: "#6366f1" },
-                                    { label: "Avg QA Score", value: `${overview.avg_score}`, icon: <TrendingUp size={18} />, color: scoreColor(overview.avg_score) },
-                                    { label: "Success Rate", value: `${overview.success_rate}%`, icon: <BarChart2 size={18} />, color: "#10b981" },
-                                    { label: "At-Risk Calls", value: overview.at_risk_count, icon: <Users size={18} />, color: "#ef4444" },
+                                    { label: "Total Calls", value: overview.total_calls, icon: <PhoneCall size={16} />, color: "#6366f1" },
+                                    { label: "Avg QA Score", value: overview.avg_score, icon: <TrendingUp size={16} />, color: scoreColor(overview.avg_score) },
+                                    { label: "Success Rate", value: `${overview.success_rate}%`, icon: <BarChart2 size={16} />, color: "#10b981" },
+                                    { label: "At-Risk Calls", value: overview.at_risk_count, icon: <Users size={16} />, color: "#ef4444" },
                                 ].map((kpi) => (
-                                    <div key={kpi.label} className="glass-card" style={{ padding: 20 }}>
-                                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                                            <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                                                {kpi.label}
-                                            </span>
-                                            <span style={{ color: kpi.color }}>{kpi.icon}</span>
-                                        </div>
-                                        <div style={{ fontSize: "2rem", fontWeight: 800, color: kpi.color }}>{kpi.value}</div>
-                                    </div>
+                                    <Card key={kpi.label}>
+                                        <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                                            <CardTitle className="text-xs font-bold">{kpi.label}</CardTitle>
+                                            <div style={{ color: kpi.color }}>{kpi.icon}</div>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="text-2xl font-bold" style={{ color: kpi.color }}>{kpi.value}</div>
+                                        </CardContent>
+                                    </Card>
                                 ))}
                             </div>
                         )}
 
                         {/* Score Trend + Score Distribution */}
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
                             {/* Score Trend */}
-                            <div className="glass-card" style={{ padding: 24 }}>
-                                <h2 style={{ fontSize: "0.85rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 20, color: "var(--text-secondary)" }}>
-                                    Avg Score Trend
-                                </h2>
-                                {scoreTrend.length > 0 ? (
-                                    <ResponsiveContainer width="100%" height={200}>
-                                        <LineChart data={scoreTrend as Record<string, unknown>[]}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                                            <XAxis dataKey="date" tick={{ fill: "#9ca3af", fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
-                                            <YAxis domain={[0, 100]} tick={{ fill: "#9ca3af", fontSize: 11 }} />
-                                            <Tooltip
-                                                contentStyle={{ background: "#1e1e2e", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12 }}
-                                                labelStyle={{ color: "#e2e8f0" }}
-                                            />
-                                            <Line type="monotone" dataKey="avg_score" stroke="#6366f1" strokeWidth={2.5} dot={false} name="Avg Score" />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                ) : (
-                                    <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", fontSize: "0.85rem" }}>
-                                        No data yet
-                                    </div>
-                                )}
-                            </div>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Avg Score Trend</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    {scoreTrend.length > 0 ? (
+                                        <ResponsiveContainer width="100%" height={220}>
+                                            <LineChart data={scoreTrend as Record<string, unknown>[]}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                                                <XAxis dataKey="date" tick={{ fill: "#9ca3af", fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
+                                                <YAxis domain={[0, 100]} tick={{ fill: "#9ca3af", fontSize: 11 }} />
+                                                <Tooltip
+                                                    contentStyle={{ background: "#1e1e2e", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12 }}
+                                                    labelStyle={{ color: "#e2e8f0" }}
+                                                />
+                                                <Line type="monotone" dataKey="avg_score" stroke="#6366f1" strokeWidth={2.5} dot={false} name="Avg Score" />
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    ) : (
+                                        <div className="h-[220px] flex items-center justify-center text-[var(--text-secondary)] text-sm">No data yet</div>
+                                    )}
+                                </CardContent>
+                            </Card>
 
                             {/* Score Distribution */}
-                            <div className="glass-card" style={{ padding: 24 }}>
-                                <h2 style={{ fontSize: "0.85rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 20, color: "var(--text-secondary)" }}>
-                                    Score Distribution
-                                </h2>
-                                {scoreDist.length > 0 ? (
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Score Distribution</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    {scoreDist.length > 0 ? (
+                                        <ResponsiveContainer width="100%" height={220}>
+                                            <BarChart data={scoreDist as Record<string, unknown>[]}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                                                <XAxis dataKey="range" tick={{ fill: "#9ca3af", fontSize: 11 }} />
+                                                <YAxis tick={{ fill: "#9ca3af", fontSize: 11 }} />
+                                                <Tooltip
+                                                    contentStyle={{ background: "#1e1e2e", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12 }}
+                                                />
+                                                <Bar dataKey="count" name="Calls" radius={[4, 4, 0, 0]}>
+                                                    {(scoreDist as { range: string }[]).map((_, i) => (
+                                                        <Cell key={i} fill={SCORE_COLORS[i]} />
+                                                    ))}
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    ) : (
+                                        <div className="h-[220px] flex items-center justify-center text-[var(--text-secondary)] text-sm">No data yet</div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Sentiment Heatmap (Phase 6 Premium UI) */}
+                        <div className="mb-6">
+                            <SentimentHeatmap data={MOCK_HEATMAP} />
+                        </div>
+
+                        {/* Call Volume */}
+                        <Card className="mb-6">
+                            <CardHeader>
+                                <CardTitle>Daily Call Volume</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {callVolume.length > 0 ? (
                                     <ResponsiveContainer width="100%" height={200}>
-                                        <BarChart data={scoreDist as Record<string, unknown>[]}>
+                                        <BarChart data={callVolume as Record<string, unknown>[]}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                                            <XAxis dataKey="range" tick={{ fill: "#9ca3af", fontSize: 11 }} />
+                                            <XAxis dataKey="date" tick={{ fill: "#9ca3af", fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
                                             <YAxis tick={{ fill: "#9ca3af", fontSize: 11 }} />
                                             <Tooltip
                                                 contentStyle={{ background: "#1e1e2e", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12 }}
                                             />
-                                            <Bar dataKey="count" name="Calls" radius={[4, 4, 0, 0]}>
-                                                {(scoreDist as { range: string }[]).map((_, i) => (
-                                                    <Cell key={i} fill={SCORE_COLORS[i]} />
-                                                ))}
-                                            </Bar>
+                                            <Bar dataKey="completed" name="Completed" fill="#10b981" stackId="a" radius={[0, 0, 0, 0]} />
+                                            <Bar dataKey="failed" name="Failed" fill="#ef4444" stackId="a" radius={[4, 4, 0, 0]} />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 ) : (
-                                    <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", fontSize: "0.85rem" }}>
-                                        No data yet
-                                    </div>
+                                    <div className="h-[200px] flex items-center justify-center text-[var(--text-secondary)] text-sm">No data yet</div>
                                 )}
-                            </div>
-                        </div>
-
-                        {/* Call Volume */}
-                        <div className="glass-card" style={{ padding: 24, marginBottom: 20 }}>
-                            <h2 style={{ fontSize: "0.85rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 20, color: "var(--text-secondary)" }}>
-                                Daily Call Volume
-                            </h2>
-                            {callVolume.length > 0 ? (
-                                <ResponsiveContainer width="100%" height={180}>
-                                    <BarChart data={callVolume as Record<string, unknown>[]}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                                        <XAxis dataKey="date" tick={{ fill: "#9ca3af", fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
-                                        <YAxis tick={{ fill: "#9ca3af", fontSize: 11 }} />
-                                        <Tooltip
-                                            contentStyle={{ background: "#1e1e2e", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12 }}
-                                        />
-                                        <Bar dataKey="completed" name="Completed" fill="#10b981" stackId="a" radius={[0, 0, 0, 0]} />
-                                        <Bar dataKey="failed" name="Failed" fill="#ef4444" stackId="a" radius={[4, 4, 0, 0]} />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <div style={{ height: 180, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", fontSize: "0.85rem" }}>
-                                    No data yet
-                                </div>
-                            )}
-                        </div>
+                            </CardContent>
+                        </Card>
 
                         {/* Agent Leaderboard */}
-                        <div className="glass-card" style={{ padding: 24 }}>
-                            <h2 style={{ fontSize: "0.85rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 20, color: "var(--text-secondary)" }}>
-                                Agent Leaderboard
-                            </h2>
-                            {(leaderboard as Record<string, unknown>[]).length > 0 ? (
-                                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                                    <thead>
-                                        <tr>
-                                            {["#", "Agent", "Calls", "Avg Score", "Min", "Max"].map((h) => (
-                                                <th key={h} style={{ textAlign: "left", padding: "0 12px 12px", fontSize: "0.75rem", fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase" }}>
-                                                    {h}
-                                                </th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {(leaderboard as Record<string, unknown>[]).map((agent, i) => (
-                                            <tr key={String(agent.user_id)} style={{ borderTop: "1px solid var(--border-color)" }}>
-                                                <td style={{ padding: "12px", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
-                                                    {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${Number(agent.rank)}`}
-                                                </td>
-                                                <td style={{ padding: "12px", fontSize: "0.9rem", fontWeight: 500 }}>{String(agent.name)}</td>
-                                                <td style={{ padding: "12px", fontSize: "0.85rem" }}>{String(agent.call_count)}</td>
-                                                <td style={{ padding: "12px" }}>
-                                                    <span style={{ fontSize: "0.9rem", fontWeight: 700, color: scoreColor(Number(agent.avg_score)) }}>
-                                                        {String(agent.avg_score)}
-                                                    </span>
-                                                </td>
-                                                <td style={{ padding: "12px", fontSize: "0.85rem", color: "#ef4444" }}>{String(agent.min_score)}</td>
-                                                <td style={{ padding: "12px", fontSize: "0.85rem", color: "#10b981" }}>{String(agent.max_score)}</td>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Agent Leaderboard</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {(leaderboard as Record<string, unknown>[]).length > 0 ? (
+                                    <table className="w-full border-collapse">
+                                        <thead>
+                                            <tr>
+                                                {["#", "Agent", "Calls", "Avg Score", "Min", "Max"].map((h) => (
+                                                    <th key={h} className="text-left py-2 px-3 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+                                                        {h}
+                                                    </th>
+                                                ))}
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            ) : (
-                                <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", textAlign: "center", padding: "32px 0" }}>
-                                    No agent data available yet. Process some calls first.
-                                </p>
-                            )}
-                        </div>
+                                        </thead>
+                                        <tbody>
+                                            {(leaderboard as Record<string, unknown>[]).map((agent, i) => (
+                                                <tr key={String(agent.user_id)} className="border-t border-[var(--border-color)] hover:bg-white/5 transition-colors">
+                                                    <td className="py-3 px-3 text-sm text-[var(--text-secondary)]">
+                                                        {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${Number(agent.rank)}`}
+                                                    </td>
+                                                    <td className="py-3 px-3 text-sm font-semibold">{String(agent.name)}</td>
+                                                    <td className="py-3 px-3 text-sm">{String(agent.call_count)}</td>
+                                                    <td className="py-3 px-3">
+                                                        <span className="text-sm font-bold" style={{ color: scoreColor(Number(agent.avg_score)) }}>
+                                                            {String(agent.avg_score)}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 px-3 text-sm text-red-400">{String(agent.min_score)}</td>
+                                                    <td className="py-3 px-3 text-sm text-emerald-400">{String(agent.max_score)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                ) : (
+                                    <p className="text-[var(--text-secondary)] text-sm text-center py-8">
+                                        No agent data available yet. Process some calls first.
+                                    </p>
+                                )}
+                            </CardContent>
+                        </Card>
                     </>
                 )}
             </main>

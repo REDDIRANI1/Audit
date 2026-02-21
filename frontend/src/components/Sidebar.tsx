@@ -34,6 +34,7 @@ const roleLinks: Record<
         { href: "/calls", icon: <FileAudio size={18} />, label: "Team Calls" },
         { href: "/analytics", icon: <BarChart3 size={18} />, label: "Analytics" },
         { href: "/analytics/team", icon: <Users size={18} />, label: "Team Performance" },
+        { href: "/analytics/compliance", icon: <ShieldCheck size={18} />, label: "Compliance" },
         { href: "/templates", icon: <FileText size={18} />, label: "Templates" },
         { href: "/settings/mfa", icon: <ShieldCheck size={18} />, label: "MFA Security" },
     ],
@@ -42,6 +43,7 @@ const roleLinks: Record<
         { href: "/calls", icon: <FileAudio size={18} />, label: "All Calls" },
         { href: "/analytics", icon: <BarChart3 size={18} />, label: "Analytics" },
         { href: "/analytics/team", icon: <Users size={18} />, label: "Team Performance" },
+        { href: "/analytics/compliance", icon: <ShieldCheck size={18} />, label: "Compliance" },
         { href: "/settings/mfa", icon: <ShieldCheck size={18} />, label: "MFA Security" },
     ],
     admin: [
@@ -50,6 +52,7 @@ const roleLinks: Record<
         { href: "/calls", icon: <FileAudio size={18} />, label: "All Calls" },
         { href: "/analytics", icon: <BarChart3 size={18} />, label: "Analytics" },
         { href: "/analytics/team", icon: <Users size={18} />, label: "Team Performance" },
+        { href: "/analytics/compliance", icon: <ShieldCheck size={18} />, label: "Compliance" },
         { href: "/templates", icon: <FileText size={18} />, label: "Templates" },
         { href: "/settings/mfa", icon: <ShieldCheck size={18} />, label: "MFA Security" },
         { href: "/settings", icon: <Settings size={18} />, label: "Settings" },

@@ -17,11 +17,18 @@ from typing import Dict, List, Any
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
+from workers.pipeline.vllm_client import VLLMClient, is_vllm_available
+
 logger = logging.getLogger(__name__)
+
+# Backend selection: 'vllm' or 'ollama'
+LLM_BACKEND = os.environ.get("LLM_BACKEND", "vllm")
 
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2:3b")
 OLLAMA_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT", "300"))
+
+VLLM_MODEL = os.environ.get("VLLM_MODEL", "meta-llama/Llama-3.2-3B-Instruct")
 
 
 # ---------------------------------------------------------------------------
@@ -55,6 +62,21 @@ def run_llm_scoring(
     """
     transcript_text = _format_transcript(transcript)
 
+    # 1. Try vLLM (Primary High-Throughput)
+    if LLM_BACKEND == "vllm" and is_vllm_available():
+        try:
+            client = VLLMClient()
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": _build_user_message(transcript_text, json_schema)},
+            ]
+            result = client.chat_completions(messages)
+            logger.info(f"[LLM] vLLM scoring succeeded. Overall={result.get('overall_score')}")
+            return _normalise_output(result)
+        except Exception as e:
+            logger.warning(f"[LLM] vLLM failed ({e}), falling back to Ollama")
+
+    # 2. Try Ollama (Secondary/Local)
     try:
         result = _call_ollama(system_prompt, transcript_text, json_schema)
         logger.info(f"[LLM] Ollama scoring succeeded. Overall={result.get('overall_score')}")
@@ -73,12 +95,10 @@ def run_llm_scoring(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=10),
 )
-def _call_ollama(system_prompt: str, transcript_text: str, json_schema: Dict) -> Dict:
-    """Send a request to Ollama and parse the JSON response."""
-
+def _build_user_message(transcript_text: str, json_schema: Dict) -> str:
+    """Consistently format the user prompt for the LLM."""
     schema_str = json.dumps(json_schema, indent=2) if json_schema else "{}"
-
-    user_message = f"""Analyze the following call transcript and return a JSON object matching the schema.
+    return f"""Analyze the following call transcript and return a JSON object matching the schema.
 
 ## JSON Schema
 ```json
@@ -96,6 +116,17 @@ def _call_ollama(system_prompt: str, transcript_text: str, json_schema: Dict) ->
 - Identify compliance flags as boolean fields
 - Return ONLY valid JSON, no explanation text
 """
+
+
+@retry(
+    retry=retry_if_exception_type((httpx.ConnectError, httpx.TimeoutException)),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+)
+def _call_ollama(system_prompt: str, transcript_text: str, json_schema: Dict) -> Dict:
+    """Send a request to Ollama and parse the JSON response."""
+
+    user_message = _build_user_message(transcript_text, json_schema)
 
     payload = {
         "model": OLLAMA_MODEL,

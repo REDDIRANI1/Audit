@@ -5,6 +5,19 @@ import Sidebar from "@/components/Sidebar";
 import { analyticsApi } from "@/lib/analyticsApi";
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { Users, TrendingUp, Award, AlertTriangle } from "lucide-react";
+import TeamSkillMatrix from "@/components/TeamSkillMatrix";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+
+// Mock team-wide skills
+const TEAM_SKILLS = [
+    { subject: "Communication", A: 78, fullMark: 100 },
+    { subject: "Empathy", A: 82, fullMark: 100 },
+    { subject: "Process", A: 65, fullMark: 100 },
+    { subject: "Compliance", A: 92, fullMark: 100 },
+    { subject: "Resolution", A: 74, fullMark: 100 },
+];
 
 interface Agent {
     rank: number;
@@ -61,253 +74,209 @@ export default function TeamAnalyticsPage() {
             <Sidebar />
             <main className="main-with-sidebar">
                 {/* Header */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32 }}>
+                <div className="flex items-center justify-between mb-8">
                     <div>
-                        <h1 style={{ fontSize: "1.6rem", fontWeight: 700 }}>Team Analytics</h1>
-                        <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginTop: 4 }}>
+                        <h1 className="text-2xl font-bold tracking-tight">Team Performance</h1>
+                        <p className="text-[var(--text-secondary)] text-sm mt-1">
                             Agent performance breakdown and coaching insights
                         </p>
                     </div>
 
-                    <div style={{ display: "flex", gap: 4, background: "var(--bg-card)", padding: 4, borderRadius: 10 }}>
+                    <div className="flex gap-1 bg-[var(--bg-card)] p-1 rounded-lg border border-[var(--border-color)]">
                         {[7, 14, 30, 60].map((d) => (
-                            <button
+                            <Button
                                 key={d}
+                                variant={days === d ? "default" : "ghost"}
+                                size="sm"
                                 onClick={() => setDays(d)}
-                                style={{
-                                    padding: "6px 14px",
-                                    borderRadius: 7,
-                                    border: "none",
-                                    cursor: "pointer",
-                                    background: days === d ? "var(--accent-blue)" : "transparent",
-                                    color: days === d ? "white" : "var(--text-secondary)",
-                                    fontSize: "0.8rem",
-                                    fontWeight: 600,
-                                    transition: "all 0.2s",
-                                }}
+                                className="h-7 px-3 text-xs"
                             >
                                 {d}d
-                            </button>
+                            </Button>
                         ))}
                     </div>
                 </div>
 
                 {loading ? (
-                    <div style={{ display: "flex", justifyContent: "center", paddingTop: 80 }}>
-                        <div className="animate-spin" style={{ width: 32, height: 32, border: "3px solid var(--border-color)", borderTopColor: "var(--accent-blue)", borderRadius: "50%" }} />
+                    <div className="flex justify-center pt-20">
+                        <div className="animate-spin w-8 h-8 border-3 border-[var(--border-color)] border-t-[var(--accent-blue)] rounded-full" />
                     </div>
                 ) : (
                     <>
                         {/* Summary Stats */}
                         {overview && (
-                            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 28 }}>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                                 {[
-                                    { label: "Team Size", value: agents.length, icon: <Users size={18} />, color: "#6366f1" },
-                                    { label: "Team Avg Score", value: `${overview.avg_score}`, icon: <TrendingUp size={18} />, color: scoreColor(overview.avg_score) },
-                                    { label: "Star Agents", value: stars.length, icon: <Award size={18} />, color: "#10b981" },
-                                    { label: "At Risk", value: atRisk.length, icon: <AlertTriangle size={18} />, color: "#ef4444" },
+                                    { label: "Team Size", value: agents.length, icon: <Users size={16} />, color: "#6366f1" },
+                                    { label: "Team Avg Score", value: overview.avg_score, icon: <TrendingUp size={16} />, color: scoreColor(overview.avg_score) },
+                                    { label: "Star Agents", value: stars.length, icon: <Award size={16} />, color: "#10b981" },
+                                    { label: "At Risk", value: atRisk.length, icon: <AlertTriangle size={16} />, color: "#ef4444" },
                                 ].map((kpi) => (
-                                    <div key={kpi.label} className="glass-card" style={{ padding: 20 }}>
-                                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                                            <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                                                {kpi.label}
-                                            </span>
-                                            <span style={{ color: kpi.color }}>{kpi.icon}</span>
-                                        </div>
-                                        <div style={{ fontSize: "2rem", fontWeight: 800, color: kpi.color }}>{kpi.value}</div>
-                                    </div>
+                                    <Card key={kpi.label}>
+                                        <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                                            <CardTitle className="text-xs font-bold">{kpi.label}</CardTitle>
+                                            <div style={{ color: kpi.color }}>{kpi.icon}</div>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="text-2xl font-bold" style={{ color: kpi.color }}>{kpi.value}</div>
+                                        </CardContent>
+                                    </Card>
                                 ))}
                             </div>
                         )}
 
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 20 }}>
+                        {/* Team Health Overview (Phase 6 Premium UI) */}
+                        <div className="mb-6">
+                            <TeamSkillMatrix data={TEAM_SKILLS} />
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             {/* Agent Table */}
-                            <div className="glass-card" style={{ padding: 24 }}>
-                                <h2 style={{ fontSize: "0.85rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 20, color: "var(--text-secondary)" }}>
-                                    All Agents
-                                </h2>
-                                {agents.length > 0 ? (
-                                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                                        {agents.map((agent, i) => (
-                                            <div
-                                                key={agent.user_id}
-                                                onClick={() => setSelected(agent)}
-                                                style={{
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    gap: 16,
-                                                    padding: "12px 16px",
-                                                    borderRadius: 10,
-                                                    cursor: "pointer",
-                                                    background: selected?.user_id === agent.user_id
-                                                        ? "rgba(99,102,241,0.1)"
-                                                        : "transparent",
-                                                    border: selected?.user_id === agent.user_id
-                                                        ? "1px solid rgba(99,102,241,0.3)"
-                                                        : "1px solid transparent",
-                                                    transition: "all 0.15s",
-                                                }}
-                                            >
-                                                {/* Rank */}
-                                                <span style={{ width: 28, fontSize: "0.85rem", color: "var(--text-secondary)", textAlign: "center" }}>
-                                                    {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}
-                                                </span>
+                            <Card className="lg:col-span-2">
+                                <CardHeader>
+                                    <CardTitle>All Agents</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    {agents.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {agents.map((agent, i) => (
+                                                <div
+                                                    key={agent.user_id}
+                                                    onClick={() => setSelected(agent)}
+                                                    className={`flex items-center gap-4 p-3 rounded-xl cursor-pointer transition-all border ${selected?.user_id === agent.user_id
+                                                            ? "bg-[var(--accent-blue)]/5 border-[var(--accent-blue)]/30"
+                                                            : "bg-transparent border-transparent hover:bg-white/5"
+                                                        }`}
+                                                >
+                                                    {/* Rank */}
+                                                    <span className="w-8 text-sm text-[var(--text-secondary)] text-center">
+                                                        {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}
+                                                    </span>
 
-                                                {/* Avatar */}
-                                                <div style={{
-                                                    width: 36, height: 36, borderRadius: "50%",
-                                                    background: `hsl(${(agent.user_id * 47) % 360}, 60%, 35%)`,
-                                                    display: "flex", alignItems: "center", justifyContent: "center",
-                                                    fontSize: "0.85rem", fontWeight: 700, color: "white", flexShrink: 0,
-                                                }}>
-                                                    {agent.name[0]?.toUpperCase()}
-                                                </div>
-
-                                                {/* Name + calls */}
-                                                <div style={{ flex: 1, minWidth: 0 }}>
-                                                    <div style={{ fontSize: "0.9rem", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                                        {agent.name}
+                                                    {/* Avatar */}
+                                                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+                                                        style={{ background: `hsl(${(agent.user_id * 47) % 360}, 60%, 35%)` }}>
+                                                        {agent.name[0]?.toUpperCase()}
                                                     </div>
-                                                    <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
-                                                        {agent.call_count} calls
-                                                    </div>
-                                                </div>
 
-                                                {/* Score */}
-                                                <div style={{ textAlign: "right" }}>
-                                                    <div style={{ fontSize: "1.1rem", fontWeight: 800, color: scoreColor(agent.avg_score) }}>
-                                                        {agent.avg_score}
+                                                    {/* Name + calls */}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-[0.9rem] font-semibold truncate">{agent.name}</div>
+                                                        <div className="text-[0.7rem] text-[var(--text-secondary)]">{agent.call_count} calls</div>
                                                     </div>
-                                                    <div style={{ fontSize: "0.7rem", color: "var(--text-secondary)" }}>avg</div>
-                                                </div>
 
-                                                {/* Mini bar */}
-                                                <div style={{ width: 60 }}>
-                                                    <div style={{ height: 4, background: "var(--border-color)", borderRadius: 2, overflow: "hidden" }}>
-                                                        <div style={{
-                                                            height: "100%",
-                                                            width: `${agent.avg_score}%`,
-                                                            background: scoreColor(agent.avg_score),
-                                                            borderRadius: 2,
-                                                            transition: "width 0.5s",
-                                                        }} />
+                                                    {/* Score */}
+                                                    <div className="text-right">
+                                                        <div className="text-base font-extrabold" style={{ color: scoreColor(agent.avg_score) }}>
+                                                            {agent.avg_score}
+                                                        </div>
+                                                        <div className="text-[0.65rem] text-[var(--text-secondary)] uppercase font-bold tracking-tight">Avg</div>
+                                                    </div>
+
+                                                    {/* Mini bar */}
+                                                    <div className="w-12 hidden sm:block">
+                                                        <div className="h-1 bg-[var(--border-color)] rounded-full overflow-hidden">
+                                                            <div className="h-full rounded-full transition-all duration-500"
+                                                                style={{ width: `${agent.avg_score}%`, background: scoreColor(agent.avg_score) }} />
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p style={{ color: "var(--text-secondary)", textAlign: "center", padding: "48px 0", fontSize: "0.85rem" }}>
-                                        No agent data yet. Process some calls first.
-                                    </p>
-                                )}
-                            </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-[var(--text-secondary)] text-center py-12 text-sm">No agent data yet.</p>
+                                    )}
+                                </CardContent>
+                            </Card>
 
                             {/* Right Panel – Agent Detail */}
-                            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                            <div className="space-y-4">
                                 {selected ? (
                                     <>
-                                        {/* Agent Card */}
-                                        <div className="glass-card" style={{ padding: 20 }}>
-                                            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-                                                <div style={{
-                                                    width: 48, height: 48, borderRadius: "50%",
-                                                    background: `hsl(${(selected.user_id * 47) % 360}, 60%, 35%)`,
-                                                    display: "flex", alignItems: "center", justifyContent: "center",
-                                                    fontSize: "1.2rem", fontWeight: 700, color: "white",
-                                                }}>
-                                                    {selected.name[0]?.toUpperCase()}
-                                                </div>
-                                                <div>
-                                                    <div style={{ fontWeight: 700, fontSize: "1rem" }}>{selected.name}</div>
-                                                    <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>{selected.email}</div>
-                                                </div>
-                                            </div>
-
-                                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-                                                {[
-                                                    { label: "Avg", value: selected.avg_score, color: scoreColor(selected.avg_score) },
-                                                    { label: "Min", value: selected.min_score, color: "#ef4444" },
-                                                    { label: "Max", value: selected.max_score, color: "#10b981" },
-                                                ].map((m) => (
-                                                    <div key={m.label} style={{ background: "rgba(255,255,255,0.03)", borderRadius: 8, padding: "10px 8px", textAlign: "center" }}>
-                                                        <div style={{ fontSize: "1.3rem", fontWeight: 800, color: m.color }}>{m.value}</div>
-                                                        <div style={{ fontSize: "0.7rem", color: "var(--text-secondary)", marginTop: 2 }}>{m.label}</div>
+                                        <Card>
+                                            <CardHeader>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold text-white"
+                                                        style={{ background: `hsl(${(selected.user_id * 47) % 360}, 60%, 35%)` }}>
+                                                        {selected.name[0]?.toUpperCase()}
                                                     </div>
-                                                ))}
-                                            </div>
+                                                    <div className="min-w-0">
+                                                        <CardTitle className="normal-case text-base text-[var(--text-primary)]">{selected.name}</CardTitle>
+                                                        <CardDescription className="truncate">{selected.email}</CardDescription>
+                                                    </div>
+                                                </div>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="grid grid-cols-3 gap-2 mb-4">
+                                                    {[
+                                                        { label: "Avg", value: selected.avg_score, color: scoreColor(selected.avg_score) },
+                                                        { label: "Min", value: selected.min_score, color: "#ef4444" },
+                                                        { label: "Max", value: selected.max_score, color: "#10b981" },
+                                                    ].map((m) => (
+                                                        <div key={m.label} className="bg-white/3 rounded-lg p-2 text-center">
+                                                            <div className="text-lg font-extrabold" style={{ color: m.color }}>{m.value}</div>
+                                                            <div className="text-[10px] text-[var(--text-secondary)] uppercase">{m.label}</div>
+                                                        </div>
+                                                    ))}
+                                                </div>
 
-                                            {/* Status badge */}
-                                            <div style={{ marginTop: 12, textAlign: "center" }}>
-                                                <span style={{
-                                                    padding: "4px 12px",
-                                                    borderRadius: 20,
-                                                    fontSize: "0.75rem",
-                                                    fontWeight: 600,
-                                                    background: selected.avg_score >= 80
-                                                        ? "rgba(16,185,129,0.1)"
-                                                        : selected.avg_score >= 60
-                                                            ? "rgba(245,158,11,0.1)"
-                                                            : "rgba(239,68,68,0.1)",
-                                                    color: scoreColor(selected.avg_score),
-                                                }}>
-                                                    {selected.avg_score >= 80 ? "⭐ Top Performer" : selected.avg_score >= 60 ? "📈 On Track" : "⚠ Needs Coaching"}
-                                                </span>
-                                            </div>
-                                        </div>
+                                                <div className="flex justify-center">
+                                                    <Badge variant={selected.avg_score >= 80 ? "success" : selected.avg_score >= 60 ? "warning" : "destructive"}>
+                                                        {selected.avg_score >= 80 ? "⭐ Top Performer" : selected.avg_score >= 60 ? "📈 On Track" : "⚠ Needs Coaching"}
+                                                    </Badge>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
 
-                                        {/* Radar Chart */}
-                                        <div className="glass-card" style={{ padding: 20 }}>
-                                            <h3 style={{ fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-secondary)", marginBottom: 12 }}>
-                                                Pillar Breakdown
-                                            </h3>
-                                            <ResponsiveContainer width="100%" height={200}>
-                                                <RadarChart data={radarData}>
-                                                    <PolarGrid stroke="rgba(255,255,255,0.08)" />
-                                                    <PolarAngleAxis dataKey="pillar" tick={{ fill: "#9ca3af", fontSize: 10 }} />
-                                                    <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
-                                                    <Radar dataKey="score" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} strokeWidth={2} />
-                                                    <Tooltip contentStyle={{ background: "#1e1e2e", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 11 }} />
-                                                </RadarChart>
-                                            </ResponsiveContainer>
-                                        </div>
+                                        <Card>
+                                            <CardHeader className="pb-2">
+                                                <CardTitle className="text-[0.7rem]">Pillar Breakdown</CardTitle>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <ResponsiveContainer width="100%" height={200}>
+                                                    <RadarChart data={radarData}>
+                                                        <PolarGrid stroke="rgba(255,255,255,0.08)" />
+                                                        <PolarAngleAxis dataKey="pillar" tick={{ fill: "#9ca3af", fontSize: 10 }} />
+                                                        <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
+                                                        <Radar dataKey="score" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} strokeWidth={2} />
+                                                        <Tooltip contentStyle={{ background: "#1e1e2e", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 11 }} />
+                                                    </RadarChart>
+                                                </ResponsiveContainer>
+                                            </CardContent>
+                                        </Card>
                                     </>
                                 ) : (
-                                    <div className="glass-card" style={{ padding: 32, textAlign: "center", color: "var(--text-secondary)", fontSize: "0.85rem" }}>
-                                        Select an agent to view details
-                                    </div>
+                                    <Card>
+                                        <CardContent className="pt-6 text-center text-[var(--text-secondary)] text-sm">
+                                            Select an agent to view details
+                                        </CardContent>
+                                    </Card>
                                 )}
                             </div>
                         </div>
 
                         {/* At-Risk Coaching Panel */}
                         {atRisk.length > 0 && (
-                            <div className="glass-card" style={{ padding: 24, marginTop: 20, borderColor: "rgba(239,68,68,0.2)" }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-                                    <AlertTriangle size={16} color="#ef4444" />
-                                    <h2 style={{ fontSize: "0.85rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#ef4444" }}>
-                                        Coaching Required
-                                    </h2>
-                                </div>
-                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
-                                    {atRisk.map((agent) => (
-                                        <div
-                                            key={agent.user_id}
-                                            style={{
-                                                padding: "12px 16px",
-                                                borderRadius: 10,
-                                                background: "rgba(239,68,68,0.06)",
-                                                border: "1px solid rgba(239,68,68,0.15)",
-                                            }}
-                                        >
-                                            <div style={{ fontWeight: 600, fontSize: "0.875rem" }}>{agent.name}</div>
-                                            <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: 2 }}>
-                                                Avg: <span style={{ color: "#ef4444", fontWeight: 700 }}>{agent.avg_score}</span> ({agent.call_count} calls)
+                            <Card className="mt-6 border-red-500/20 bg-red-500/5">
+                                <CardHeader>
+                                    <div className="flex items-center gap-2">
+                                        <AlertTriangle size={16} className="text-red-500" />
+                                        <CardTitle className="text-red-500">Coaching Required</CardTitle>
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                                        {atRisk.map((agent) => (
+                                            <div key={agent.user_id} className="p-3 rounded-lg bg-red-500/10 border border-red-500/15">
+                                                <div className="text-sm font-bold">{agent.name}</div>
+                                                <div className="text-[0.65rem] text-[var(--text-secondary)] mt-1">
+                                                    Avg Score: <span className="text-red-500 font-bold">{agent.avg_score}</span>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
                         )}
                     </>
                 )}

@@ -23,6 +23,7 @@ from workers.pipeline.vad import run_vad
 from workers.pipeline.diarizer import run_diarization
 from workers.pipeline.transcriber import run_transcription
 from workers.pipeline.llm_scorer import run_llm_scoring
+from workers.pipeline.pci_redactor import detect_and_mute_dtmf
 from workers.pipeline.db_persistence import (
     update_call_status,
     record_processing_job,
@@ -30,6 +31,7 @@ from workers.pipeline.db_persistence import (
     save_evaluation,
     get_template,
 )
+import soundfile as sf
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +84,13 @@ def process_call(self, call_id: int, s3_path: str, template_id: int):
         logger.info(f"[Call {call_id}] Stage 2: Normalizing audio")
         normalized_path = normalize_audio(local_path)
         duration = get_audio_duration(normalized_path)
+        
+        # ── PCI Redaction (DTMF Muting) ──────────────────────────────────
+        logger.info(f"[Call {call_id}] Running PCI redaction (DTMF check)")
+        audio_data, samplerate = sf.read(normalized_path)
+        redacted_data = detect_and_mute_dtmf(audio_data, samplerate)
+        sf.write(normalized_path, redacted_data, samplerate)
+        
         _stage_done(call_id, "normalize")
 
         # ════════════════════════════════════════════════════════════════

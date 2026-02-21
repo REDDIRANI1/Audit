@@ -25,6 +25,8 @@ celery[redis]==5.4.0
 # --- HTTP client ---
 httpx==0.27.0
 tenacity==9.0.0
+prometheus-client==0.20.0
+fpdf2==2.8.2
 
 # --- Phase 2: ML Pipeline ---
 # ASR

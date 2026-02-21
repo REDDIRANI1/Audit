@@ -2,7 +2,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.api import auth, upload, calls, templates, dashboard, websocket, analytics
+from app.api import (
+    auth, upload, calls, templates, dashboard, websocket, analytics, metrics,
+    compliance
+)
 
 
 @asynccontextmanager
@@ -42,6 +45,8 @@ app.include_router(templates.router)
 app.include_router(dashboard.router)
 app.include_router(websocket.router)
 app.include_router(analytics.router)
+app.include_router(metrics.router)
+app.include_router(compliance.router)
 
 
 @app.get("/")
