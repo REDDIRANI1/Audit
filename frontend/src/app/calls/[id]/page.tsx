@@ -17,7 +17,9 @@ import {
     Shield,
     Target,
     RefreshCw,
+    AlertTriangle,
 } from "lucide-react";
+
 import Link from "next/link";
 
 export default function CallDetailPage() {
@@ -225,6 +227,26 @@ export default function CallDetailPage() {
                                 ))}
                             </div>
 
+                            {/* Fatal flaw banner */}
+                            {data.fatal_flaw && (
+                                <div style={{
+                                    display: "flex", alignItems: "center", gap: 12,
+                                    padding: "14px 20px", borderRadius: 12, marginBottom: 20,
+                                    background: "rgba(239,68,68,0.08)",
+                                    border: "1px solid rgba(239,68,68,0.3)",
+                                }}>
+                                    <AlertTriangle size={20} color="#ef4444" />
+                                    <div>
+                                        <p style={{ fontWeight: 700, color: "#ef4444", fontSize: "0.95rem" }}>
+                                            Fatal Flaw — Compliance Breach
+                                        </p>
+                                        <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", marginTop: 2 }}>
+                                            A critical compliance pillar scored 0. RES has been set to 0 per policy.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Tab Content */}
                             {tab === "overview" && (
                                 <div
@@ -251,6 +273,28 @@ export default function CallDetailPage() {
                                             sublabel="Call Quality Score"
                                             size={220}
                                         />
+                                        {/* Score label badge (SES / SQS / RES) */}
+                                        {data.score_label && (
+                                            <span style={{
+                                                marginTop: 8,
+                                                display: "inline-block",
+                                                padding: "4px 12px",
+                                                borderRadius: 20,
+                                                fontSize: "0.8rem",
+                                                fontWeight: 700,
+                                                letterSpacing: "0.06em",
+                                                background: "rgba(99,102,241,0.12)",
+                                                color: "#818cf8",
+                                                border: "1px solid rgba(99,102,241,0.2)",
+                                            }}>
+                                                {data.score_label}
+                                            </span>
+                                        )}
+                                        {data.score_name && (
+                                            <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: 4 }}>
+                                                {data.score_name}
+                                            </p>
+                                        )}
                                     </div>
 
                                     {/* Details */}

@@ -30,9 +30,13 @@ export interface CallResult {
     call_id: number;
     status: string;
     overall_score?: number;
+    score_label?: string;          // SES | SQS | RES
+    score_name?: string;           // Full name e.g. "Sales Excellence Score"
+    fatal_flaw?: boolean;          // True = Collections compliance breach
     summary?: string;
     compliance_flags?: Record<string, boolean>;
     pillar_scores?: Record<string, number>;
+    pillar_breakdown?: Record<string, { score: number; weight_pct: number; weighted_contribution: number }>;
     recommendations?: string[];
     transcript?: TranscriptSegment[];
 }

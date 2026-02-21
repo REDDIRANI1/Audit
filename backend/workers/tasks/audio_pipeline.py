@@ -123,8 +123,15 @@ def process_call(self, call_id: int, s3_path: str, template_id: int):
         scores = run_llm_scoring(transcript, system_prompt, json_schema)
         _stage_done(call_id, "score")
 
-        # Persist evaluation results
-        save_evaluation(call_id, scores)
+        # Compute silence ratio (non-speech / total) for scoring penalty
+        silence_ratio = None
+        if duration and duration > 0 and vad_segments is not None:
+            speech_duration = sum(seg.get("end", 0) - seg.get("start", 0) for seg in vad_segments)
+            silence_ratio = max(0.0, 1.0 - (speech_duration / duration))
+            scores["silence_ratio"] = silence_ratio
+
+        # Persist evaluation results (scoring engine applies vertical formula inside)
+        save_evaluation(call_id, scores, template_id=template_id)
 
         # ════════════════════════════════════════════════════════════════
         # Stage 7: Finalise

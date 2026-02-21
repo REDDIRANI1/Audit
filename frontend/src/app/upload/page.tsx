@@ -23,7 +23,7 @@ export default function UploadPage() {
     const [dragActive, setDragActive] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [results, setResults] = useState<
-        { name: string; status: "success" | "error"; id?: number; message?: string }[]
+        { name: string; status: "success" | "error"; id?: number; batchId?: string; message?: string }[]
     >([]);
 
     useEffect(() => {
@@ -80,6 +80,7 @@ export default function UploadPage() {
                         name: file.name,
                         status: "success",
                         id: isZip ? undefined : res.data.call_id,
+                        batchId: isZip ? res.data.batch_id : undefined,
                     },
                 ]);
             } catch (err: any) {
@@ -291,8 +292,8 @@ export default function UploadPage() {
                                                 ? "rgba(16,185,129,0.06)"
                                                 : "rgba(239,68,68,0.06)",
                                         border: `1px solid ${r.status === "success"
-                                                ? "rgba(16,185,129,0.15)"
-                                                : "rgba(239,68,68,0.15)"
+                                            ? "rgba(16,185,129,0.15)"
+                                            : "rgba(239,68,68,0.15)"
                                             }`,
                                         borderRadius: 10,
                                         marginBottom: 8,
@@ -312,9 +313,35 @@ export default function UploadPage() {
                                         }}
                                     >
                                         {r.status === "success"
-                                            ? `Queued (ID: ${r.id || "batch"})`
+                                            ? r.batchId
+                                                ? "Batch queued"
+                                                : `Queued (ID: ${r.id})`
                                             : r.message}
                                     </span>
+                                    {r.status === "success" && r.batchId && (
+                                        <button
+                                            onClick={() => router.push(`/calls/batch/${r.batchId}`)}
+                                            style={{
+                                                padding: "4px 12px", borderRadius: 8, border: "none",
+                                                background: "rgba(99,102,241,0.15)", color: "#818cf8",
+                                                cursor: "pointer", fontSize: "0.8rem", fontWeight: 600,
+                                            }}
+                                        >
+                                            View Progress →
+                                        </button>
+                                    )}
+                                    {r.status === "success" && r.id && (
+                                        <button
+                                            onClick={() => router.push(`/calls/${r.id}`)}
+                                            style={{
+                                                padding: "4px 12px", borderRadius: 8, border: "none",
+                                                background: "rgba(99,102,241,0.15)", color: "#818cf8",
+                                                cursor: "pointer", fontSize: "0.8rem", fontWeight: 600,
+                                            }}
+                                        >
+                                            View Call →
+                                        </button>
+                                    )}
                                 </div>
                             ))}
                         </div>

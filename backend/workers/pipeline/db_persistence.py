@@ -104,11 +104,25 @@ def save_transcript(call_id: int, segments: List[Dict]) -> None:
     logger.info(f"[DB] Saved {len(segments)} transcript segments for call {call_id}")
 
 
-def save_evaluation(call_id: int, scores: Dict[str, Any]) -> None:
+def save_evaluation(call_id: int, scores: Dict[str, Any], template_id: int = None) -> None:
     """
-    Upsert evaluation results for a call.
+    Apply vertical scoring formula then upsert evaluation results for a call.
     """
     from app.models.evaluation import EvaluationResult
+    from app.models.scoring_template import ScoringTemplate
+    from app.services.scoring_engine import apply_vertical_scoring
+
+    # Determine vertical from template
+    vertical = "Sales"
+    silence_ratio = scores.get("silence_ratio")
+    if template_id:
+        with get_sync_db() as tmp_db:
+            tmpl = tmp_db.query(ScoringTemplate).filter(ScoringTemplate.id == template_id).first()
+            if tmpl:
+                vertical = tmpl.vertical or "Sales"
+
+    # Apply weighted formula
+    scores = apply_vertical_scoring(scores, vertical=vertical, silence_ratio=silence_ratio)
 
     with get_sync_db() as db:
         existing = (
@@ -130,7 +144,7 @@ def save_evaluation(call_id: int, scores: Dict[str, Any]) -> None:
         ev.recommendations = scores.get("recommendations", [])
         ev.full_json_output = scores.get("raw_output", scores)
 
-    logger.info(f"[DB] Saved evaluation for call {call_id} (score={scores.get('overall_score')})")
+    logger.info(f"[DB] Saved evaluation for call {call_id} (score={scores.get('overall_score')}, label={scores.get('score_label')})")  
 
 
 def get_template(template_id: int) -> Optional[Dict]:
@@ -144,6 +158,7 @@ def get_template(template_id: int) -> Optional[Dict]:
         return {
             "id": t.id,
             "name": t.name,
+            "vertical": t.vertical or "Sales",
             "system_prompt": t.system_prompt,
             "json_schema": t.json_schema or {},
         }

@@ -17,6 +17,7 @@ async def list_calls(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     status_filter: str = Query(None, alias="status"),
+    batch_id: str = Query(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -34,6 +35,9 @@ async def list_calls(
 
     if status_filter:
         query = query.where(Call.status == status_filter)
+
+    if batch_id:
+        query = query.where(Call.batch_id == batch_id)
 
     # Count total
     count_query = select(func.count()).select_from(query.subquery())
@@ -111,13 +115,20 @@ async def get_call_results(
         for t in transcripts
     ]
 
+    full_json = evaluation.full_json_output or {} if evaluation else {}
+
     return CallResultResponse(
         call_id=call_id,
         status=call.status.value if hasattr(call.status, 'value') else call.status,
         overall_score=evaluation.overall_score if evaluation else None,
+        score_label=full_json.get("score_label"),
+        score_name=full_json.get("score_name"),
+        fatal_flaw=full_json.get("fatal_flaw", False),
         summary=evaluation.summary if evaluation else None,
         compliance_flags=evaluation.compliance_flags if evaluation else None,
         pillar_scores=evaluation.pillar_scores if evaluation else None,
+        pillar_breakdown=full_json.get("pillar_breakdown"),
         recommendations=evaluation.recommendations if evaluation else None,
         transcript=transcript_data if transcripts else None,
     )
+
