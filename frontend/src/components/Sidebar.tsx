@@ -11,6 +11,7 @@ import {
     LogOut,
     ChevronRight,
     Shield,
+    ShieldCheck,
     Users,
     BarChart3,
     FileText,
@@ -25,6 +26,7 @@ const roleLinks: Record<
         { href: "/dashboard/agent", icon: <LayoutDashboard size={18} />, label: "Dashboard" },
         { href: "/upload", icon: <Upload size={18} />, label: "Upload Calls" },
         { href: "/calls", icon: <FileAudio size={18} />, label: "My Calls" },
+        { href: "/settings/mfa", icon: <ShieldCheck size={18} />, label: "MFA Security" },
     ],
     manager: [
         { href: "/dashboard/manager", icon: <LayoutDashboard size={18} />, label: "Dashboard" },
@@ -33,12 +35,14 @@ const roleLinks: Record<
         { href: "/analytics", icon: <BarChart3 size={18} />, label: "Analytics" },
         { href: "/analytics/team", icon: <Users size={18} />, label: "Team Performance" },
         { href: "/templates", icon: <FileText size={18} />, label: "Templates" },
+        { href: "/settings/mfa", icon: <ShieldCheck size={18} />, label: "MFA Security" },
     ],
     cxo: [
         { href: "/dashboard/cxo", icon: <BarChart3 size={18} />, label: "Executive View" },
         { href: "/calls", icon: <FileAudio size={18} />, label: "All Calls" },
         { href: "/analytics", icon: <BarChart3 size={18} />, label: "Analytics" },
         { href: "/analytics/team", icon: <Users size={18} />, label: "Team Performance" },
+        { href: "/settings/mfa", icon: <ShieldCheck size={18} />, label: "MFA Security" },
     ],
     admin: [
         { href: "/dashboard/admin", icon: <LayoutDashboard size={18} />, label: "Dashboard" },
@@ -47,6 +51,7 @@ const roleLinks: Record<
         { href: "/analytics", icon: <BarChart3 size={18} />, label: "Analytics" },
         { href: "/analytics/team", icon: <Users size={18} />, label: "Team Performance" },
         { href: "/templates", icon: <FileText size={18} />, label: "Templates" },
+        { href: "/settings/mfa", icon: <ShieldCheck size={18} />, label: "MFA Security" },
         { href: "/settings", icon: <Settings size={18} />, label: "Settings" },
     ],
 };

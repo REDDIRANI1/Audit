@@ -5,24 +5,20 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER}" ]
       interval: 5s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -33,35 +29,28 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-    ports:
-      - "9000:9000"
-      - "9001:9001"
     volumes:
       - minio_data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: [ "CMD", "mc", "ready", "local" ]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  # ── Ollama – local LLM inference (CPU by default) ──────────────────────
+  # ── Ollama – local LLM inference (CPU by default) ──────────────────────────
   ollama:
     image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
-    # Pull the default model on startup
-    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 5 && ollama pull ${OLLAMA_MODEL:-llama3.2:3b} && wait"]
+    entrypoint: [ "/bin/sh", "-c", "ollama serve & sleep 5 && ollama pull ${OLLAMA_MODEL:-llama3.2:3b} && wait" ]
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags || exit 1"]
+      test: [ "CMD-SHELL", "curl -sf http://localhost:11434/api/tags || exit 1" ]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 60s
-    # GPU profile – add 'docker-compose --profile gpu up' to enable
     profiles:
-      - ""       # always run (no profile = default)
+      - "" # always run (no profile = default)
     # Uncomment for NVIDIA GPU:
     # deploy:
     #   resources:
@@ -77,8 +66,6 @@ services:
       dockerfile: Dockerfile
     env_file:
       - .env
-    ports:
-      - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -89,6 +76,17 @@ services:
     volumes:
       - ../backend:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    # Internal only — Nginx terminates TLS on :443
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    depends_on:
+      - api
+    # Internal only — Nginx terminates TLS on :443
 
   worker:
     build:
@@ -107,7 +105,7 @@ services:
         condition: service_healthy
     volumes:
       - ../backend:/app
-      - model_cache:/root/.cache      # shared model cache (Whisper, Silero)
+      - model_cache:/root/.cache # shared model cache (Whisper, Silero)
     command: celery -A workers.celery_app worker --loglevel=info --concurrency=2 -Q default
 
   beat:
@@ -122,6 +120,20 @@ services:
     volumes:
       - ../backend:/app
     command: celery -A workers.celery_app beat --loglevel=info
+
+  # ── Nginx – TLS termination + reverse proxy ───────────────────────────────
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - api
+      - frontend
+    restart: unless-stopped
 
 volumes:
   postgres_data:

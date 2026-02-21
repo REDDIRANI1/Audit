@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     JWT_SECRET: str = "change-me-to-a-secure-random-string"
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_MINUTES: int = 1440  # 24 hours
+    MFA_TEMP_TOKEN_MINUTES: int = 5    # short-lived token while MFA pending
+
+    # Fernet symmetric encryption (for TOTP secrets and other sensitive fields)
+    # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    FERNET_KEY: str = "REPLACE_ME_WITH_FERNET_KEY_SEE_ABOVE"
 
     # Upload limits
     UPLOAD_MAX_SIZE_MB: int = 500
@@ -39,3 +44,4 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+

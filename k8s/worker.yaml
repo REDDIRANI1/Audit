@@ -1,0 +1,130 @@
+---
+# Celery Worker Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: audit-ai
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      containers:
+        - name: worker
+          image: ghcr.io/your-org/audit-ai-backend:latest
+          command: ["celery", "-A", "workers.celery_app", "worker",
+                    "--loglevel=info", "--concurrency=2", "-Q", "default"]
+          envFrom:
+            - configMapRef:
+                name: audit-ai-config
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: audit-ai-secrets
+                  key: POSTGRES_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: audit-ai-secrets
+                  key: JWT_SECRET
+            - name: FERNET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: audit-ai-secrets
+                  key: FERNET_KEY
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: audit-ai-secrets
+                  key: S3_ACCESS_KEY
+            - name: S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: audit-ai-secrets
+                  key: S3_SECRET_KEY
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: audit-ai-secrets
+                  key: HF_TOKEN
+            - name: DATABASE_URL
+              value: "postgresql+psycopg2://auditai:$(POSTGRES_PASSWORD)@postgres-svc:5432/auditai"
+          # Workers need significant CPU/RAM for ML inference
+          resources:
+            requests:
+              cpu: "1000m"
+              memory: "2Gi"
+            limits:
+              cpu: "4000m"
+              memory: "8Gi"
+          volumeMounts:
+            - name: model-cache
+              mountPath: /root/.cache
+      volumes:
+        - name: model-cache
+          emptyDir: {}   # Replace with PVC for persistent model caching
+---
+# Celery Beat Scheduler
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: beat
+  namespace: audit-ai
+spec:
+  replicas: 1   # Always exactly 1
+  selector:
+    matchLabels:
+      app: beat
+  template:
+    metadata:
+      labels:
+        app: beat
+    spec:
+      containers:
+        - name: beat
+          image: ghcr.io/your-org/audit-ai-backend:latest
+          command: ["celery", "-A", "workers.celery_app", "beat", "--loglevel=info"]
+          envFrom:
+            - configMapRef:
+                name: audit-ai-config
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: audit-ai-secrets
+                  key: POSTGRES_PASSWORD
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
+---
+# Worker HPA – scale on CPU
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: worker-hpa
+  namespace: audit-ai
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: worker
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80

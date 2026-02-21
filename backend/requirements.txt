@@ -45,3 +45,10 @@ numpy==1.26.4
 # --- Testing ---
 pytest==8.3.0
 pytest-asyncio==0.24.0
+
+# --- Phase 4: Security & Compliance ---
+# MFA / TOTP
+pyotp==2.9.0
+# spaCy NER for PII redaction (optional – install model separately)
+# spacy==3.7.4  # uncomment to enable NER-based redaction
+# python -m spacy download en_core_web_sm

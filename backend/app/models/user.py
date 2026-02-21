@@ -1,5 +1,5 @@
 import enum
-from sqlalchemy import Column, Integer, String, Enum, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Enum, DateTime, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -23,6 +23,9 @@ class User(Base):
     department = Column(String(100), nullable=True)
     client_id = Column(Integer, ForeignKey("clients.id"), nullable=True)
     is_active = Column(Integer, default=1)
+    # MFA / TOTP fields
+    totp_secret_enc = Column(String(512), nullable=True)
+    mfa_enabled = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -30,3 +33,4 @@ class User(Base):
     calls = relationship("Call", back_populates="user")
     audit_logs = relationship("AuditLog", back_populates="user")
     client = relationship("Client", back_populates="users")
+

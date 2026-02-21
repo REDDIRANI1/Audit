@@ -42,16 +42,26 @@ def decode_access_token(token: str) -> dict:
         return None
 
 
-# Fernet encryption for sensitive fields
-_fernet_key = Fernet.generate_key()
-_fernet = Fernet(_fernet_key)
+# Fernet encryption for sensitive fields (TOTP secrets, etc.)
+# Key is loaded from settings so it survives process restarts.
+def _get_fernet() -> Fernet:
+    key = settings.FERNET_KEY
+    # Accept raw base64 key or generate a placeholder-safe fallback for dev
+    try:
+        return Fernet(key.encode() if isinstance(key, str) else key)
+    except Exception:
+        # Dev fallback — log warning in real usage
+        import warnings
+        warnings.warn("FERNET_KEY is invalid; using ephemeral key (dev only)")
+        return Fernet(Fernet.generate_key())
 
 
 def encrypt_field(value: str) -> str:
     """Encrypt a sensitive field value using Fernet."""
-    return _fernet.encrypt(value.encode()).decode()
+    return _get_fernet().encrypt(value.encode()).decode()
 
 
 def decrypt_field(encrypted_value: str) -> str:
     """Decrypt a Fernet-encrypted field value."""
-    return _fernet.decrypt(encrypted_value.encode()).decode()
+    return _get_fernet().decrypt(encrypted_value.encode()).decode()
+

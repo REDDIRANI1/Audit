@@ -70,6 +70,12 @@ def run_transcription(
 
         # Align each Whisper segment to a diarization speaker
         aligned = _align_with_speakers(whisper_segments, speaker_segments)
+
+        # Redact PII before returning / storing
+        from workers.pipeline.pii_redactor import redact_transcript
+        aligned = redact_transcript(aligned)
+        logger.info("[ASR] PII redaction applied to transcript")
+
         return aligned
 
     except ImportError:

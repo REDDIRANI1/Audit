@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: audit-ai-config
+  namespace: audit-ai
+data:
+  POSTGRES_DB: "auditai"
+  POSTGRES_USER: "auditai"
+  REDIS_URL: "redis://redis-svc:6379/0"
+  S3_ENDPOINT: "http://minio-svc:9000"
+  S3_BUCKET: "audit-recordings"
+  OLLAMA_BASE_URL: "http://ollama-svc:11434"
+  OLLAMA_MODEL: "llama3.2:3b"
+  WHISPER_MODEL: "base"
+  DEVICE: "cpu"
+  FRONTEND_URL: "https://app.auditai.com"
+  JWT_ALGORITHM: "HS256"
+  JWT_EXPIRATION_MINUTES: "1440"
+  MFA_TEMP_TOKEN_MINUTES: "5"
+  UPLOAD_MAX_SIZE_MB: "500"
+  ALLOWED_EXTENSIONS: "wav,mp3,zip"
