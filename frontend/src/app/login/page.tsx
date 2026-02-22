@@ -14,7 +14,7 @@ export default function LoginPage() {
         email: "",
         password: "",
         full_name: "",
-        role: "Agent",
+        role: "agent",
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -234,10 +234,10 @@ export default function LoginPage() {
                                 value={form.role}
                                 onChange={(e) => setForm({ ...form, role: e.target.value })}
                             >
-                                <option value="Agent">Agent</option>
-                                <option value="Manager">Manager</option>
-                                <option value="CXO">CXO</option>
-                                <option value="Admin">Admin</option>
+                                <option value="agent">Agent</option>
+                                <option value="manager">Manager</option>
+                                <option value="cxo">CXO</option>
+                                <option value="admin">Admin</option>
                             </select>
                         </div>
                     )}

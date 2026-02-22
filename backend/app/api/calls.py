@@ -25,9 +25,9 @@ async def list_calls(
     query = select(Call)
 
     # RBAC: Agents see own calls, Managers see team, Admin/CXO see all
-    if current_user.role == UserRole.AGENT:
+    if current_user.role == UserRole.agent:
         query = query.where(Call.user_id == current_user.id)
-    elif current_user.role == UserRole.MANAGER:
+    elif current_user.role == UserRole.manager:
         # Manager sees their team (same department)
         team_query = select(User.id).where(User.department == current_user.department)
         query = query.where(Call.user_id.in_(team_query))
@@ -70,7 +70,7 @@ async def get_call(
         raise HTTPException(status_code=404, detail="Call not found")
 
     # RBAC check
-    if current_user.role == UserRole.AGENT and call.user_id != current_user.id:
+    if current_user.role == UserRole.agent and call.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to view this call")
 
     return CallResponse.model_validate(call)
@@ -89,7 +89,7 @@ async def get_call_results(
         raise HTTPException(status_code=404, detail="Call not found")
 
     # RBAC check
-    if current_user.role == UserRole.AGENT and call.user_id != current_user.id:
+    if current_user.role == UserRole.agent and call.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to view this call")
 
     # Get evaluation

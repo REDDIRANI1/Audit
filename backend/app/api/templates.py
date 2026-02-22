@@ -48,7 +48,7 @@ async def get_template(
 @router.post("", response_model=TemplateResponse, status_code=status.HTTP_201_CREATED)
 async def create_template(
     body: TemplateCreate,
-    current_user: User = Depends(require_role(UserRole.MANAGER, UserRole.ADMIN, UserRole.CXO)),
+    current_user: User = Depends(require_role(UserRole.manager, UserRole.admin, UserRole.cxo)),
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new scoring template (Manager+ only)."""
@@ -68,7 +68,7 @@ async def create_template(
 async def update_template(
     template_id: int,
     body: TemplateCreate,
-    current_user: User = Depends(require_role(UserRole.MANAGER, UserRole.ADMIN, UserRole.CXO)),
+    current_user: User = Depends(require_role(UserRole.manager, UserRole.admin, UserRole.cxo)),
     db: AsyncSession = Depends(get_db),
 ):
     """Update a scoring template (creates a new version)."""

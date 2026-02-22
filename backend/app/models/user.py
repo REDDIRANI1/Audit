@@ -6,10 +6,10 @@ from app.database import Base
 
 
 class UserRole(str, enum.Enum):
-    AGENT = "Agent"
-    MANAGER = "Manager"
-    CXO = "CXO"
-    ADMIN = "Admin"
+    agent = "agent"
+    manager = "manager"
+    cxo = "cxo"
+    admin = "admin"
 
 
 class User(Base):
@@ -17,17 +17,19 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
-    password_hash = Column(String(255), nullable=False)
+    hashed_password = Column(String(255), nullable=False)
     full_name = Column(String(255), nullable=False)
-    role = Column(Enum(UserRole), nullable=False, default=UserRole.AGENT)
+    role = Column(Enum(UserRole, name="userrole"), nullable=False, default=UserRole.agent)
     department = Column(String(100), nullable=True)
     client_id = Column(Integer, ForeignKey("clients.id"), nullable=True)
-    is_active = Column(Integer, default=1)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    last_login = Column(DateTime(timezone=True), nullable=True)
+    
     # MFA / TOTP fields
     totp_secret_enc = Column(String(512), nullable=True)
     mfa_enabled = Column(Boolean, default=False, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
     calls = relationship("Call", back_populates="user")

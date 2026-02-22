@@ -21,9 +21,9 @@ async def get_dashboard(
     recent_calls = []
     alerts = []
 
-    if current_user.role == UserRole.AGENT:
+    if current_user.role == UserRole.agent:
         metrics, recent_calls, alerts = await _agent_dashboard(db, current_user)
-    elif current_user.role == UserRole.MANAGER:
+    elif current_user.role == UserRole.manager:
         metrics, recent_calls, alerts = await _manager_dashboard(db, current_user)
     else:  # CXO / Admin
         metrics, recent_calls, alerts = await _executive_dashboard(db, current_user)

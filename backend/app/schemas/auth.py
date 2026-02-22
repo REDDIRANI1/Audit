@@ -11,7 +11,7 @@ class RegisterRequest(BaseModel):
     email: str
     password: str
     full_name: str
-    role: str = "Agent"
+    role: str = "agent"
     department: Optional[str] = None
 
 
@@ -52,7 +52,7 @@ class UserResponse(BaseModel):
     full_name: str
     role: str
     department: Optional[str] = None
-    is_active: int
+    is_active: bool
     mfa_enabled: bool = False
 
     class Config:

@@ -8,7 +8,7 @@ async def authenticate_user(db: AsyncSession, email: str, password: str) -> User
     """Authenticate a user by email and password."""
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
-    if not user or not verify_password(password, user.password_hash):
+    if not user or not verify_password(password, user.hashed_password):
         return None
     return user
 
@@ -18,14 +18,14 @@ async def create_user(
     email: str,
     password: str,
     full_name: str,
-    role: UserRole = UserRole.AGENT,
+    role: UserRole = UserRole.agent,
     department: str = None,
     client_id: int = None,
 ) -> User:
     """Create a new user with hashed password."""
     user = User(
         email=email,
-        password_hash=hash_password(password),
+        hashed_password=hash_password(password),
         full_name=full_name,
         role=role,
         department=department,

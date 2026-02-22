@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Response
-from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import func, select
 from typing import Dict, Any, List
 import logging
 
-from app.db.session import get_db
+from app.database import get_db
 from app.models.call import Call, CallStatus
 from app.services.compliance_report import generate_pci_attestation
 from app.api.auth import get_current_user
@@ -14,14 +14,15 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 @router.get("/stats")
-def get_compliance_stats(
-    db: Session = Depends(get_db),
+async def get_compliance_stats(
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     Returns aggregated PCI compliance statistics.
     """
-    total_calls = db.query(func.count(Call.id)).filter(Call.status == CallStatus.COMPLETED).scalar()
+    result = await db.execute(select(func.count(Call.id)).filter(Call.status == CallStatus.COMPLETED))
+    total_calls = result.scalar()
     
     # Mock some compliance-specific stats for now as we just integrated the redactor
     # In a real scenario, we would query a 'redactions' table or similar.
@@ -35,15 +36,16 @@ def get_compliance_stats(
     return {"status": "success", "data": stats}
 
 @router.get("/download-report")
-def download_pci_report(
-    db: Session = Depends(get_db),
+async def download_pci_report(
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     Generates and returns the PCI Compliance PDF report.
     """
     # Fetch data for report
-    total_calls = db.query(func.count(Call.id)).filter(Call.status == CallStatus.COMPLETED).scalar()
+    result = await db.execute(select(func.count(Call.id)).filter(Call.status == CallStatus.COMPLETED))
+    total_calls = result.scalar()
     
     stats = {
         "total_calls": total_calls or 0,

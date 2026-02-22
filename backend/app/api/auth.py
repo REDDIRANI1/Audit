@@ -177,7 +177,7 @@ async def register(
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid role: {body.role}. Must be one of: Agent, Manager, CXO, Admin",
+            detail=f"Invalid role: {body.role}. Must be one of: agent, manager, cxo, admin",
         )
 
     user = await create_user(
