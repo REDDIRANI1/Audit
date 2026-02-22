@@ -6,7 +6,7 @@ import { ShieldCheck, ShieldOff, Smartphone, Copy, CheckCircle, AlertTriangle, L
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 async function apiFetch(path: string, options: RequestInit = {}) {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("access_token");
     const res = await fetch(`${API}${path}`, {
         ...options,
         headers: {
@@ -129,8 +129,8 @@ export default function MfaSettingsPage() {
 
             {/* Status card */}
             <div className={`rounded-2xl border px-5 py-4 mb-6 flex items-center gap-3 ${status?.mfa_enabled
-                    ? "bg-emerald-500/10 border-emerald-500/30"
-                    : "bg-amber-500/10 border-amber-500/30"
+                ? "bg-emerald-500/10 border-emerald-500/30"
+                : "bg-amber-500/10 border-amber-500/30"
                 }`}>
                 {status?.mfa_enabled ? (
                     <CheckCircle size={20} className="text-emerald-400 shrink-0" />

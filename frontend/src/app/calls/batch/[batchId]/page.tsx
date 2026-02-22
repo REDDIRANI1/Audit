@@ -83,7 +83,7 @@ export default function BatchPage() {
     const [loading, setLoading] = useState(true);
 
     const load = useCallback(async () => {
-        const token = localStorage.getItem("token") ?? "";
+        const token = localStorage.getItem("access_token") ?? "";
         const data = await fetchBatchCalls(batchId, token);
         setCalls(data);
         setLoading(false);
